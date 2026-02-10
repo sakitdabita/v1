@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { getSession, setSession, clearSession, requireAuth } from './lib/session';
-import { lookupThreat } from './lib/providers';
+import { getSession, setSession, clearSession, requireAuth } from '../lib/session';
+import { lookupThreat } from '../lib/providers';
 
 type Bindings = {
   DB: D1Database;
@@ -12,27 +12,10 @@ type Bindings = {
   IBM_XF_API_KEY?: string;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
-
-// Root route - serve SPA container
-app.get('/', (c) => {
-  return c.html(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Security Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-  <div id="app"></div>
-  <script src="/app.js"></script>
-</body>
-</html>`);
-});
+const app = new Hono<{ Bindings: Bindings }>({ strict: false }).basePath('/api');
 
 // Login endpoint
-app.post('/api/login', async (c) => {
+app.post('/login', async (c) => {
   try {
     const body = await c.req.json();
     const { username } = body;
@@ -49,13 +32,13 @@ app.post('/api/login', async (c) => {
 });
 
 // Logout endpoint
-app.post('/api/logout', (c) => {
+app.post('/logout', (c) => {
   clearSession(c);
   return c.json({ success: true });
 });
 
 // Session check endpoint
-app.get('/api/session', async (c) => {
+app.get('/session', async (c) => {
   try {
     const session = await getSession(c);
     if (session) {
@@ -69,7 +52,7 @@ app.get('/api/session', async (c) => {
 });
 
 // Profile endpoint (requires auth)
-app.get('/api/profile', async (c) => {
+app.get('/profile', async (c) => {
   try {
     const session = await requireAuth(c);
     
@@ -90,7 +73,7 @@ app.get('/api/profile', async (c) => {
 });
 
 // Threat lookup endpoint (requires auth)
-app.post('/api/threat-lookup', async (c) => {
+app.post('/threat-lookup', async (c) => {
   try {
     await requireAuth(c);
 
@@ -116,7 +99,7 @@ app.post('/api/threat-lookup', async (c) => {
 });
 
 // API Sandbox - Outbound health check
-app.get('/api/health/outbound', async (c) => {
+app.get('/health/outbound', async (c) => {
   try {
     await requireAuth(c);
 
@@ -154,7 +137,7 @@ app.get('/api/health/outbound', async (c) => {
 });
 
 // API Sandbox - Internal D1 health check
-app.get('/api/health/internal', async (c) => {
+app.get('/health/internal', async (c) => {
   try {
     await requireAuth(c);
 
@@ -189,4 +172,13 @@ app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404);
 });
 
-export const onRequest = app.fetch;
+// Error handler
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: err.message || 'Internal server error' }, 500);
+});
+
+// Export for Cloudflare Pages Functions
+export const onRequest = async (context: any) => {
+  return app.fetch(context.request, context.env, context);
+};

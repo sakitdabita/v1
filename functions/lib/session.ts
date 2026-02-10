@@ -59,9 +59,12 @@ export async function setSession(c: Context, data: SessionData): Promise<void> {
   const sessionData = encodeURIComponent(JSON.stringify(data));
   const signature = await signData(sessionData, sessionSecret);
 
+  // Use secure flag only in production (check for HTTPS)
+  const isSecure = c.req.url.startsWith('https://');
+
   setCookie(c, 'session', sessionData, {
     httpOnly: true,
-    secure: true,
+    secure: isSecure,
     sameSite: 'Lax',
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
@@ -69,7 +72,7 @@ export async function setSession(c: Context, data: SessionData): Promise<void> {
 
   setCookie(c, 'session.sig', signature, {
     httpOnly: true,
-    secure: true,
+    secure: isSecure,
     sameSite: 'Lax',
     maxAge: 60 * 60 * 24 * 7,
     path: '/',
