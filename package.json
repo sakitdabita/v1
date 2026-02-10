@@ -1,0 +1,19 @@
+{
+  "name": "v1",
+  "version": "1.0.0",
+  "description": "Cloudflare Pages Hono.js dashboard with threat intelligence",
+  "scripts": {
+    "dev": "wrangler pages dev ./public --compatibility-date=2024-10-01 --d1=DB",
+    "deploy": "wrangler pages deploy ./public",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240821.1",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.78.0"
+  }
+}
