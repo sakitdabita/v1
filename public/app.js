@@ -263,6 +263,12 @@ function renderDashboard() {
               API Lab
             </button>
             <button 
+              onclick="switchTab('logs')" 
+              class="tab-btn ${state.currentTab === 'logs' ? 'tab-active' : ''} py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+            >
+              Logs
+            </button>
+            <button 
               onclick="switchTab('health')" 
               class="tab-btn ${state.currentTab === 'health' ? 'tab-active' : ''} py-4 px-1 border-b-2 font-medium text-sm transition-colors"
             >
@@ -294,6 +300,8 @@ function renderTabContent() {
       return renderBulkWhoisTab();
     case 'api-lab':
       return renderApiLabTab();
+    case 'logs':
+      return renderLogsTab();
     case 'health':
       return renderHealthTab();
     default:
@@ -572,6 +580,39 @@ function renderHealthTab() {
   `;
 }
 
+function renderLogsTab() {
+  return `
+    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+        <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        Audit Logs
+      </h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4 text-sm">View system activity and audit trail</p>
+      
+      <div class="flex gap-4 mb-6">
+        <button 
+          onclick="loadLogs()"
+          class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-md"
+        >
+          Refresh Logs
+        </button>
+        <button 
+          onclick="clearLogs()"
+          class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-all font-semibold shadow-md"
+        >
+          Clear Logs
+        </button>
+      </div>
+      
+      <div id="logs-content" class="mt-4">
+        <p class="text-gray-500 dark:text-gray-400 text-sm">Click "Refresh Logs" to load recent activity</p>
+      </div>
+    </div>
+  `;
+}
+
 function renderApiLabTab() {
   return `
     <div class="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
@@ -627,6 +668,16 @@ function renderApiLabTab() {
             rows="6"
             placeholder='{"key": "value"}'
           ></textarea>
+        </div>
+        
+        <div class="flex gap-2 mb-4">
+          <button 
+            type="button"
+            onclick="loadAbuseIPDBPreset()"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all font-semibold text-sm"
+          >
+            Load AbuseIPDB Example
+          </button>
         </div>
         
         <button 
@@ -814,7 +865,7 @@ async function handleBulkCheck(event) {
 
   // Build compact table with breakdown columns
   let html = '<div class="mb-4">';
-  html += '<button onclick="copyTableToClipboard(\'bulk-check-table\')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2">';
+  html += '<button onclick="copyTableToClipboard(\'bulk-check-table\', event)" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2">';
   html += '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
   html += '<span>Copy Table</span>';
   html += '</button></div>';
@@ -1068,6 +1119,70 @@ async function handleOutboundHealth(event) {
   resultsDiv.innerHTML = html;
 }
 
+async function loadLogs() {
+  const logsDiv = document.getElementById('logs-content');
+  logsDiv.innerHTML = '<div class="flex items-center space-x-2 text-gray-600 dark:text-gray-400"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div><span>Loading logs...</span></div>';
+  
+  try {
+    const response = await fetch('/api/logs');
+    const data = await response.json();
+    
+    if (data.error) {
+      logsDiv.innerHTML = `<div class="text-red-600 dark:text-red-400 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">Error: ${data.error}</div>`;
+      return;
+    }
+    
+    if (!data.logs || data.logs.length === 0) {
+      logsDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No logs available</p>';
+      return;
+    }
+    
+    let html = '<div class="overflow-x-auto">';
+    html += '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-2 border-gray-200 dark:border-gray-700 rounded-lg">';
+    html += '<thead class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">';
+    html += '<tr>';
+    html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase">Timestamp</th>';
+    html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase">Username</th>';
+    html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase">Action</th>';
+    html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase">Details</th>';
+    html += '</tr>';
+    html += '</thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
+    
+    data.logs.forEach(log => {
+      html += '<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">';
+      html += `<td class="px-4 py-3 text-xs text-gray-900 dark:text-gray-100">${new Date(log.timestamp).toLocaleString()}</td>`;
+      html += `<td class="px-4 py-3 text-xs text-gray-900 dark:text-gray-100">${log.username}</td>`;
+      html += `<td class="px-4 py-3 text-xs text-gray-900 dark:text-gray-100">${log.action}</td>`;
+      html += `<td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">${JSON.stringify(log.details)}</td>`;
+      html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    logsDiv.innerHTML = html;
+  } catch (error) {
+    logsDiv.innerHTML = `<div class="text-red-600 dark:text-red-400 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">Failed to load logs: ${error.message}</div>`;
+  }
+}
+
+async function clearLogs() {
+  if (!confirm('Are you sure you want to clear all logs?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/logs', { method: 'DELETE' });
+    const data = await response.json();
+    
+    if (data.success) {
+      document.getElementById('logs-content').innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">Logs cleared successfully</p>';
+    } else {
+      alert('Failed to clear logs: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    alert('Failed to clear logs: ' + error.message);
+  }
+}
+
 async function handleInternalHealth() {
   const resultsDiv = document.getElementById('internal-results');
   resultsDiv.innerHTML = '<p class="text-gray-600 text-sm flex items-center space-x-2 mt-4"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div><span>Checking...</span></p>';
@@ -1092,6 +1207,16 @@ async function handleInternalHealth() {
   
   html += '</div>';
   resultsDiv.innerHTML = html;
+}
+
+function loadAbuseIPDBPreset() {
+  document.getElementById('api-method').value = 'GET';
+  document.getElementById('api-url').value = 'https://api.abuseipdb.com/api/v2/check?ipAddress=8.8.8.8&maxAgeInDays=90&verbose=true';
+  document.getElementById('api-headers').value = JSON.stringify({
+    "Key": "YOUR_API_KEY_HERE",
+    "Accept": "application/json"
+  }, null, 2);
+  document.getElementById('api-body').value = '';
 }
 
 async function handleApiLab(event) {
@@ -1173,9 +1298,9 @@ function getProviderColumns(provider) {
     case 'threatfox':
       return ['Threat Type', 'Malware', 'Confidence', 'IOCs'];
     case 'abuseipdb':
-      return ['Abuse Score', 'Reports', 'Users', 'Country', 'Whitelisted'];
+      return ['Abuse Score', 'Reports', 'Users', 'ISP', 'Hostname', 'Country', 'Whitelisted'];
     case 'otx':
-      return ['Pulses', 'Latest Pulse', 'Country', 'ASN'];
+      return ['Pulses', 'Latest Pulse', 'ISP', 'Hostname', 'Country', 'ASN'];
     case 'ibm-xforce':
       return ['Risk Score', 'Categories', 'Country'];
     default:
@@ -1224,18 +1349,24 @@ function extractProviderColumns(provider, data, status) {
             `${d.abuseConfidenceScore || 0}%`,
             d.totalReports || 0,
             d.numDistinctUsers || 0,
+            d.isp || '-',
+            d.domain || '-',
             d.countryCode || '-',
             d.isWhitelisted ? 'Yes' : 'No'
           ];
         }
-        return ['-', '-', '-', '-', '-'];
+        return ['-', '-', '-', '-', '-', '-', '-'];
         
       case 'OTX/LevelBlue':
         const pulseCount = data.pulse_info?.count || 0;
         const latestPulse = data.pulse_info?.pulses?.[0]?.name || '-';
+        const isp = data.isp || '-';
+        const hostname = data.hostname || '-';
         return [
           pulseCount,
           latestPulse.length > 30 ? latestPulse.substring(0, 30) + '...' : latestPulse,
+          isp.length > 25 ? isp.substring(0, 25) + '...' : isp,
+          hostname.length > 25 ? hostname.substring(0, 25) + '...' : hostname,
           data.country_name || '-',
           data.asn || '-'
         ];
@@ -1259,7 +1390,7 @@ function extractProviderColumns(provider, data, status) {
   }
 }
 
-function copyTableToClipboard(tableId) {
+function copyTableToClipboard(tableId, event) {
   const table = document.getElementById(tableId);
   if (!table) return;
   
@@ -1499,3 +1630,10 @@ async function logAction(action, details = {}) {
 // Initialize
 initializeTheme();
 checkSession();
+
+// Make functions globally accessible
+window.toggleTheme = toggleTheme;
+window.copyTableToClipboard = copyTableToClipboard;
+window.loadAbuseIPDBPreset = loadAbuseIPDBPreset;
+window.loadLogs = loadLogs;
+window.clearLogs = clearLogs;

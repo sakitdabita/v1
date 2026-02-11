@@ -249,21 +249,68 @@ app.get('/health/internal', async (c) => {
 });
 
 // Logging endpoint
+// Simple in-memory log storage (for development)
+// In production, this should use KV, R2, or Durable Objects
+const logStorage: Array<{timestamp: string, username: string, action: string, details: any}> = [];
+
 app.post('/log', async (c) => {
   try {
     const body = await c.req.json();
     const { username, action, details, timestamp } = body;
     
-    const logEntry = `${timestamp} | ${username} | ${action} | ${JSON.stringify(details)}\n`;
+    const logEntry = {
+      timestamp,
+      username,
+      action,
+      details
+    };
     
-    // In Cloudflare Workers, we can't write to local filesystem
-    // Instead, we'll log to console and could use KV or R2 for persistence
-    console.log('AUDIT_LOG:', logEntry);
+    // Store in memory (limited to last 1000 entries)
+    logStorage.push(logEntry);
+    if (logStorage.length > 1000) {
+      logStorage.shift();
+    }
     
-    // For now, just acknowledge the log
+    // Also log to console for debugging
+    console.log('AUDIT_LOG:', `${timestamp} | ${username} | ${action} | ${JSON.stringify(details)}`);
+    
     return c.json({ success: true });
   } catch (error: any) {
     console.error('Logging error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Get logs endpoint
+app.get('/logs', async (c) => {
+  try {
+    await requireAuth(c);
+    
+    // Return last 100 logs in reverse chronological order
+    const recentLogs = logStorage.slice(-100).reverse();
+    
+    return c.json({ logs: recentLogs });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Clear logs endpoint
+app.delete('/logs', async (c) => {
+  try {
+    await requireAuth(c);
+    
+    // Clear all logs
+    logStorage.length = 0;
+    
+    return c.json({ success: true, message: 'Logs cleared' });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
     return c.json({ error: error.message }, 500);
   }
 });
