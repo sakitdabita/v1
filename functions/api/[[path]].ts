@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { getSession, setSession, clearSession, requireAuth } from '../lib/session';
-import { lookupThreat } from '../lib/providers';
+import { lookupThreat, bulkLookupThreat, pingRecon, bulkWhois } from '../lib/providers';
 
 type Bindings = {
   DB: D1Database;
@@ -10,6 +10,7 @@ type Bindings = {
   OTX_API_KEY?: string;
   ABUSEIPDB_API_KEY?: string;
   IBM_XF_API_KEY?: string;
+  IPINFO_API_KEY?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>({ strict: false }).basePath('/api');
@@ -95,6 +96,85 @@ app.post('/threat-lookup', async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
     return c.json({ error: error.message || 'Lookup failed' }, 500);
+  }
+});
+
+// Bulk threat lookup endpoint (requires auth)
+app.post('/bulk-threat-lookup', async (c) => {
+  try {
+    await requireAuth(c);
+
+    const body = await c.req.json();
+    const { provider, type, indicators } = body;
+
+    if (!provider || !type || !indicators) {
+      return c.json({ error: 'Provider, type, and indicators are required' }, 400);
+    }
+
+    if (!['ip', 'domain', 'hash'].includes(type)) {
+      return c.json({ error: 'Type must be ip, domain, or hash' }, 400);
+    }
+
+    if (!Array.isArray(indicators)) {
+      return c.json({ error: 'Indicators must be an array' }, 400);
+    }
+
+    // Limit VirusTotal to max 10 indicators
+    if (provider === 'virustotal' && indicators.length > 10) {
+      return c.json({ error: 'VirusTotal is limited to maximum 10 indicators per request' }, 400);
+    }
+
+    const results = await bulkLookupThreat(provider, type as any, indicators, c.env);
+    return c.json({ results });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message || 'Bulk lookup failed' }, 500);
+  }
+});
+
+// Ping recon endpoint (requires auth)
+app.post('/ping-recon', async (c) => {
+  try {
+    await requireAuth(c);
+
+    const body = await c.req.json();
+    const { target } = body;
+
+    if (!target) {
+      return c.json({ error: 'Target (IP or domain) is required' }, 400);
+    }
+
+    const result = await pingRecon(target);
+    return c.json(result);
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message || 'Ping recon failed' }, 500);
+  }
+});
+
+// Bulk WHOIS endpoint (requires auth)
+app.post('/bulk-whois', async (c) => {
+  try {
+    await requireAuth(c);
+
+    const body = await c.req.json();
+    const { targets } = body;
+
+    if (!targets || !Array.isArray(targets)) {
+      return c.json({ error: 'Targets array is required' }, 400);
+    }
+
+    const results = await bulkWhois(targets, c.env.IPINFO_API_KEY);
+    return c.json({ results });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message || 'Bulk WHOIS failed' }, 500);
   }
 });
 
