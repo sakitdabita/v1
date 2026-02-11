@@ -7,6 +7,7 @@ let state = {
   currentTab: 'dashboard',
   bulkCheckResults: [],
   whoisResults: [],
+  darkMode: true, // Default to dark mode
 };
 
 // Check session on load
@@ -159,9 +160,9 @@ async function healthInternal() {
 // Render functions
 function renderLoginCard() {
   return `
-    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div class="max-w-md w-full mx-4">
-        <div class="bg-white shadow-2xl rounded-2xl p-8 border border-gray-100">
+        <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-8 border border-gray-100 dark:border-gray-700">
           <div class="text-center mb-8">
             <div class="inline-block p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mb-4">
               <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,15 +170,15 @@ function renderLoginCard() {
               </svg>
             </div>
             <h2 class="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">Security Dashboard</h2>
-            <p class="text-gray-600">Threat Intelligence & Network Recon</p>
+            <p class="text-gray-600 dark:text-gray-400">Threat Intelligence & Network Recon</p>
           </div>
           <form onsubmit="handleLogin(event)" class="space-y-5">
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Username</label>
               <input 
                 type="text" 
                 id="username" 
-                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                class="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="Enter username"
                 required
               />
@@ -189,7 +190,7 @@ function renderLoginCard() {
               Sign In
             </button>
           </form>
-          <p class="mt-6 text-sm text-gray-500 text-center">Demo mode - enter any username</p>
+          <p class="mt-6 text-sm text-gray-500 dark:text-gray-400 text-center">Demo mode - enter any username</p>
         </div>
       </div>
     </div>
@@ -198,9 +199,9 @@ function renderLoginCard() {
 
 function renderDashboard() {
   return `
-    <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <!-- Header -->
-      <div class="bg-white shadow-sm border-b border-gray-200">
+      <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between items-center py-4">
             <div class="flex items-center space-x-4">
@@ -211,7 +212,7 @@ function renderDashboard() {
               </div>
               <div>
                 <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">Security Dashboard</h1>
-                <p class="text-sm text-gray-600">Welcome back, <span class="font-semibold">${state.username}</span></p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back, <span class="font-semibold">${state.username}</span></p>
               </div>
             </div>
             <button 
@@ -228,7 +229,7 @@ function renderDashboard() {
       </div>
 
       <!-- Navigation Tabs -->
-      <div class="bg-white border-b border-gray-200">
+      <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav class="flex space-x-8">
             <button 
@@ -254,6 +255,12 @@ function renderDashboard() {
               class="tab-btn ${state.currentTab === 'bulk-whois' ? 'tab-active' : ''} py-4 px-1 border-b-2 font-medium text-sm transition-colors"
             >
               Bulk WHOIS
+            </button>
+            <button 
+              onclick="switchTab('api-lab')" 
+              class="tab-btn ${state.currentTab === 'api-lab' ? 'tab-active' : ''} py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+            >
+              API Lab
             </button>
             <button 
               onclick="switchTab('health')" 
@@ -285,6 +292,8 @@ function renderTabContent() {
       return renderPingReconTab();
     case 'bulk-whois':
       return renderBulkWhoisTab();
+    case 'api-lab':
+      return renderApiLabTab();
     case 'health':
       return renderHealthTab();
     default:
@@ -563,6 +572,76 @@ function renderHealthTab() {
   `;
 }
 
+function renderApiLabTab() {
+  return `
+    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+        <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+        </svg>
+        API Lab
+      </h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4 text-sm">Experiment with internal and external API requests</p>
+      
+      <form onsubmit="handleApiLab(event)" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Method</label>
+            <select 
+              id="api-method" 
+              class="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">URL</label>
+            <input 
+              type="text" 
+              id="api-url" 
+              class="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              placeholder="https://api.example.com/endpoint"
+              required
+            />
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Headers (JSON format, optional)</label>
+          <textarea 
+            id="api-headers" 
+            class="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            rows="3"
+            placeholder='{"Content-Type": "application/json"}'
+          ></textarea>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Body (JSON format, optional)</label>
+          <textarea 
+            id="api-body" 
+            class="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            rows="6"
+            placeholder='{"key": "value"}'
+          ></textarea>
+        </div>
+        
+        <button 
+          type="submit"
+          class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-md"
+        >
+          Send Request
+        </button>
+      </form>
+      
+      <div id="api-lab-results" class="mt-6"></div>
+    </div>
+  `;
+}
+
 function renderProfile() {
   const p = state.profile;
   return `
@@ -709,7 +788,7 @@ async function handleBulkCheck(event) {
   const resultsDiv = document.getElementById('bulk-results');
   
   if (provider === 'virustotal' && indicators.length > 10) {
-    resultsDiv.innerHTML = '<div class="text-red-600 p-4 bg-red-50 rounded-lg border border-red-200">VirusTotal is limited to maximum 10 indicators per request. Please remove some indicators.</div>';
+    resultsDiv.innerHTML = '<div class="text-red-600 dark:text-red-400 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">VirusTotal is limited to maximum 10 indicators per request. Please remove some indicators.</div>';
     return;
   }
 
@@ -722,43 +801,53 @@ async function handleBulkCheck(event) {
     }
   }
 
-  resultsDiv.innerHTML = '<div class="flex items-center space-x-2 text-gray-600"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div><span>Processing bulk check...</span></div>';
+  resultsDiv.innerHTML = '<div class="flex items-center space-x-2 text-gray-600 dark:text-gray-400"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div><span>Processing bulk check...</span></div>';
 
+  logAction('bulk_check', { provider, type, count: indicators.length });
+  
   const data = await bulkThreatLookup(provider, type, indicators, options);
   
   if (data.error) {
-    resultsDiv.innerHTML = `<div class="text-red-600 p-4 bg-red-50 rounded-lg border border-red-200">Error: ${data.error}</div>`;
+    resultsDiv.innerHTML = `<div class="text-red-600 dark:text-red-400 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">Error: ${data.error}</div>`;
     return;
   }
 
-  // Extract useful information and build enhanced table
-  let html = '<div class="overflow-x-auto">';
-  html += '<table class="min-w-full divide-y divide-gray-200 border-2 border-gray-200 rounded-lg">';
+  // Build compact table with breakdown columns
+  let html = '<div class="mb-4">';
+  html += '<button onclick="copyTableToClipboard(\'bulk-check-table\')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2">';
+  html += '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
+  html += '<span>Copy Table</span>';
+  html += '</button></div>';
+  
+  html += '<div class="overflow-x-auto">';
+  html += '<table id="bulk-check-table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-2 border-gray-200 dark:border-gray-700 rounded-lg">';
   html += '<thead class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">';
   html += '<tr>';
-  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Indicator</th>';
-  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Status</th>';
-  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Details</th>';
-  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Actions</th>';
+  html += '<th class="px-3 py-2 text-left text-xs font-bold uppercase">Indicator</th>';
+  html += '<th class="px-3 py-2 text-left text-xs font-bold uppercase">Status</th>';
+  
+  // Add provider-specific columns
+  const columns = getProviderColumns(provider);
+  columns.forEach(col => {
+    html += `<th class="px-3 py-2 text-left text-xs font-bold uppercase">${col}</th>`;
+  });
+  
+  html += '<th class="px-3 py-2 text-left text-xs font-bold uppercase">Actions</th>';
   html += '</tr>';
-  html += '</thead><tbody class="bg-white divide-y divide-gray-200">';
+  html += '</thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
   
   data.results.forEach((result, index) => {
-    html += '<tr class="hover:bg-gray-50">';
-    html += `<td class="px-4 py-4 whitespace-nowrap font-mono text-sm">${result.indicator}</td>`;
-    html += `<td class="px-4 py-4 whitespace-nowrap"><span class="px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(result.status)}">${result.status}</span></td>`;
+    html += '<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">';
+    html += `<td class="px-3 py-2 whitespace-nowrap font-mono text-xs text-gray-900 dark:text-gray-100">${result.indicator}</td>`;
+    html += `<td class="px-3 py-2 whitespace-nowrap"><span class="px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(result.status)}">${result.status}</span></td>`;
     
-    // Extract and display useful details based on provider
-    html += '<td class="px-4 py-4 text-sm">';
-    if (result.status === 'success' && result.data) {
-      html += extractProviderDetails(result.provider, result.data);
-    } else if (result.error) {
-      html += `<span class="text-red-600">${result.error}</span>`;
-    } else {
-      html += '<span class="text-gray-400">No data</span>';
-    }
-    html += '</td>';
-    html += `<td class="px-6 py-4 whitespace-nowrap"><button onclick="showRawJson(${index})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">View JSON</button></td>`;
+    // Extract provider-specific data into columns
+    const rowData = extractProviderColumns(result.provider, result.data, result.status);
+    rowData.forEach(value => {
+      html += `<td class="px-3 py-2 text-xs text-gray-700 dark:text-gray-300">${value}</td>`;
+    });
+    
+    html += `<td class="px-3 py-2 whitespace-nowrap"><button onclick="showRawJson(${index})" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold text-xs">JSON</button></td>`;
     html += '</tr>';
   });
   
@@ -1005,7 +1094,199 @@ async function handleInternalHealth() {
   resultsDiv.innerHTML = html;
 }
 
+async function handleApiLab(event) {
+  event.preventDefault();
+  
+  const method = document.getElementById('api-method').value;
+  const url = document.getElementById('api-url').value;
+  const headersText = document.getElementById('api-headers').value;
+  const bodyText = document.getElementById('api-body').value;
+  
+  const resultsDiv = document.getElementById('api-lab-results');
+  resultsDiv.innerHTML = '<div class="flex items-center space-x-2 text-gray-600 dark:text-gray-400"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div><span>Sending request...</span></div>';
+  
+  try {
+    // Parse headers and body if provided
+    let headers = {};
+    if (headersText.trim()) {
+      try {
+        headers = JSON.parse(headersText);
+      } catch (e) {
+        resultsDiv.innerHTML = '<div class="text-red-600 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">Invalid JSON in headers</div>';
+        return;
+      }
+    }
+    
+    let body = null;
+    if (bodyText.trim() && (method === 'POST' || method === 'PUT')) {
+      try {
+        body = JSON.parse(bodyText);
+      } catch (e) {
+        resultsDiv.innerHTML = '<div class="text-red-600 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">Invalid JSON in body</div>';
+        return;
+      }
+    }
+    
+    // Log the API lab request
+    logAction('api_lab_request', { method, url });
+    
+    // Make the request through our backend proxy
+    const response = await fetch('/api/proxy-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, url, headers, body })
+    });
+    
+    const result = await response.json();
+    
+    // Display results
+    let html = '<div class="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">';
+    html += `<div class="mb-2"><span class="font-semibold text-gray-800 dark:text-gray-200">Status:</span> <span class="ml-2 px-3 py-1 rounded-full text-xs font-semibold ${result.status >= 200 && result.status < 300 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}">${result.status || 'N/A'}</span></div>`;
+    html += `<div class="mb-2"><span class="font-semibold text-gray-800 dark:text-gray-200">Duration:</span> <span class="ml-2 text-gray-700 dark:text-gray-300">${result.duration || 'N/A'}</span></div>`;
+    
+    if (result.headers) {
+      html += `<div class="mt-4"><span class="font-semibold text-gray-800 dark:text-gray-200">Response Headers:</span></div>`;
+      html += `<pre class="mt-2 bg-gray-800 dark:bg-gray-950 text-gray-100 p-4 rounded-lg text-xs overflow-auto max-h-48 font-mono">${JSON.stringify(result.headers, null, 2)}</pre>`;
+    }
+    
+    if (result.data) {
+      html += `<div class="mt-4"><span class="font-semibold text-gray-800 dark:text-gray-200">Response Data:</span></div>`;
+      html += `<pre class="mt-2 bg-gray-800 dark:bg-gray-950 text-gray-100 p-4 rounded-lg text-xs overflow-auto max-h-96 font-mono">${JSON.stringify(result.data, null, 2)}</pre>`;
+    }
+    
+    if (result.error) {
+      html += `<div class="mt-2 text-red-600 dark:text-red-400"><span class="font-semibold">Error:</span> ${result.error}</div>`;
+    }
+    
+    html += '</div>';
+    resultsDiv.innerHTML = html;
+  } catch (error) {
+    resultsDiv.innerHTML = `<div class="text-red-600 dark:text-red-400 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">Request failed: ${error.message}</div>`;
+  }
+}
+
 // Helper functions
+function getProviderColumns(provider) {
+  switch (provider) {
+    case 'virustotal':
+      return ['Malicious', 'Suspicious', 'Clean', 'Country', 'Reputation'];
+    case 'threatfox':
+      return ['Threat Type', 'Malware', 'Confidence', 'IOCs'];
+    case 'abuseipdb':
+      return ['Abuse Score', 'Reports', 'Users', 'Country', 'Whitelisted'];
+    case 'otx':
+      return ['Pulses', 'Latest Pulse', 'Country', 'ASN'];
+    case 'ibm-xforce':
+      return ['Risk Score', 'Categories', 'Country'];
+    default:
+      return ['Info'];
+  }
+}
+
+function extractProviderColumns(provider, data, status) {
+  if (status !== 'success' || !data) {
+    const columns = getProviderColumns(provider);
+    return columns.map(() => '-');
+  }
+  
+  try {
+    switch (provider) {
+      case 'VirusTotal':
+        if (data.data && data.data.attributes) {
+          const attrs = data.data.attributes;
+          const stats = attrs.last_analysis_stats || {};
+          return [
+            stats.malicious || 0,
+            stats.suspicious || 0,
+            stats.harmless || 0,
+            attrs.country || '-',
+            attrs.reputation !== undefined ? attrs.reputation : '-'
+          ];
+        }
+        return ['-', '-', '-', '-', '-'];
+        
+      case 'ThreatFox':
+        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+          const threat = data.data[0];
+          return [
+            threat.threat_type || '-',
+            threat.malware || '-',
+            threat.confidence_level ? `${threat.confidence_level}%` : '-',
+            data.data.length
+          ];
+        }
+        return ['-', '-', '-', '0'];
+        
+      case 'AbuseIPDB':
+        if (data.data) {
+          const d = data.data;
+          return [
+            `${d.abuseConfidenceScore || 0}%`,
+            d.totalReports || 0,
+            d.numDistinctUsers || 0,
+            d.countryCode || '-',
+            d.isWhitelisted ? 'Yes' : 'No'
+          ];
+        }
+        return ['-', '-', '-', '-', '-'];
+        
+      case 'OTX/LevelBlue':
+        const pulseCount = data.pulse_info?.count || 0;
+        const latestPulse = data.pulse_info?.pulses?.[0]?.name || '-';
+        return [
+          pulseCount,
+          latestPulse.length > 30 ? latestPulse.substring(0, 30) + '...' : latestPulse,
+          data.country_name || '-',
+          data.asn || '-'
+        ];
+        
+      case 'IBM X-Force':
+        const score = data.score || '-';
+        const cats = data.cats ? Object.keys(data.cats).join(', ') : '-';
+        const country = data.geo?.country || '-';
+        return [
+          score,
+          cats.length > 30 ? cats.substring(0, 30) + '...' : cats,
+          country
+        ];
+        
+      default:
+        return ['Data available'];
+    }
+  } catch (e) {
+    const columns = getProviderColumns(provider);
+    return columns.map(() => 'Error');
+  }
+}
+
+function copyTableToClipboard(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  
+  let text = '';
+  const rows = table.querySelectorAll('tr');
+  rows.forEach((row) => {
+    const cells = row.querySelectorAll('th, td');
+    const rowText = Array.from(cells).map(cell => cell.textContent.trim()).join('\t');
+    text += rowText + '\n';
+  });
+  
+  navigator.clipboard.writeText(text).then(() => {
+    // Show success message
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Copied!</span>';
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+    }, 2000);
+    
+    logAction('copy_table', { tableId });
+  }).catch(err => {
+    console.error('Copy failed:', err);
+    alert('Failed to copy table');
+  });
+}
+
 function extractProviderDetails(provider, data) {
   let details = [];
   
@@ -1155,6 +1436,9 @@ function getStatusBadge(status) {
         border-color: transparent;
         color: #6b7280;
       }
+      .dark .tab-btn {
+        color: #9ca3af;
+      }
       .tab-btn:hover {
         color: #3b82f6;
         border-color: #93c5fd;
@@ -1168,5 +1452,50 @@ function getStatusBadge(status) {
   }
 })();
 
+// Theme management
+function initializeTheme() {
+  // Check localStorage for saved theme preference, default to dark
+  const savedTheme = localStorage.getItem('theme');
+  state.darkMode = savedTheme ? savedTheme === 'dark' : true;
+  applyTheme();
+}
+
+function applyTheme() {
+  const html = document.documentElement;
+  if (state.darkMode) {
+    html.classList.add('dark');
+    document.body.style.backgroundColor = '#1f2937';
+  } else {
+    html.classList.remove('dark');
+    document.body.style.backgroundColor = '#f9fafb';
+  }
+  localStorage.setItem('theme', state.darkMode ? 'dark' : 'light');
+}
+
+function toggleTheme() {
+  state.darkMode = !state.darkMode;
+  applyTheme();
+  logAction('theme_toggle', { theme: state.darkMode ? 'dark' : 'light' });
+}
+
+// Logging function
+async function logAction(action, details = {}) {
+  try {
+    await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: state.username || 'anonymous',
+        action,
+        details,
+        timestamp: new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    console.error('Logging failed:', error);
+  }
+}
+
 // Initialize
+initializeTheme();
 checkSession();

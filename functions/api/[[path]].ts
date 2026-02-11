@@ -248,6 +248,94 @@ app.get('/health/internal', async (c) => {
   }
 });
 
+// Logging endpoint
+app.post('/log', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { username, action, details, timestamp } = body;
+    
+    const logEntry = `${timestamp} | ${username} | ${action} | ${JSON.stringify(details)}\n`;
+    
+    // In Cloudflare Workers, we can't write to local filesystem
+    // Instead, we'll log to console and could use KV or R2 for persistence
+    console.log('AUDIT_LOG:', logEntry);
+    
+    // For now, just acknowledge the log
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Logging error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// API Lab proxy endpoint
+app.post('/proxy-request', async (c) => {
+  try {
+    await requireAuth(c);
+    
+    const body = await c.req.json();
+    const { method, url, headers, body: requestBody } = body;
+    
+    if (!method || !url) {
+      return c.json({ error: 'Method and URL are required' }, 400);
+    }
+    
+    try {
+      const startTime = Date.now();
+      const requestOptions: RequestInit = {
+        method,
+        headers: headers || {},
+      };
+      
+      if (requestBody && (method === 'POST' || method === 'PUT')) {
+        requestOptions.body = JSON.stringify(requestBody);
+        if (!requestOptions.headers) requestOptions.headers = {};
+        (requestOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+      }
+      
+      const response = await fetch(url, requestOptions);
+      const duration = Date.now() - startTime;
+      
+      // Try to parse response as JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch {
+          data = await response.text();
+        }
+      } else {
+        data = await response.text();
+      }
+      
+      // Get response headers
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      
+      return c.json({
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+        data,
+        duration: `${duration}ms`,
+      });
+    } catch (error: any) {
+      return c.json({
+        error: error.message,
+        status: 0,
+      });
+    }
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 // 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404);
