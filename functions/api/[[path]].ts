@@ -10,6 +10,7 @@ type Bindings = {
   OTX_API_KEY?: string;
   ABUSEIPDB_API_KEY?: string;
   IBM_XF_API_KEY?: string;
+  // Optional ipinfo.io API key for WHOIS lookups with higher rate limits
   IPINFO_API_KEY?: string;
 };
 

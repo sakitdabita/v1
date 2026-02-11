@@ -711,23 +711,35 @@ function showRawJson(index) {
   const result = state.bulkCheckResults[index];
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'modal-title');
   
   // Add keyboard accessibility
-  const closeModal = () => modal.remove();
+  const closeModal = () => {
+    modal.remove();
+    document.removeEventListener('keydown', handleKeyDown);
+  };
+  
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       closeModal();
-      document.removeEventListener('keydown', handleKeyDown);
     }
   };
   document.addEventListener('keydown', handleKeyDown);
   
+  // Close on backdrop click
+  modal.onclick = (e) => { 
+    if (e.target === modal) {
+      closeModal();
+    }
+  };
+  
   modal.innerHTML = `
     <div class="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold text-gray-800">Raw JSON - ${result.indicator}</h3>
-        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700">
+        <h3 id="modal-title" class="text-xl font-bold text-gray-800">Raw JSON - ${result.indicator}</h3>
+        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700" aria-label="Close modal">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -738,10 +750,7 @@ function showRawJson(index) {
   `;
   
   // Add click handler to close button
-  modal.querySelector('#close-modal-btn').addEventListener('click', () => {
-    closeModal();
-    document.removeEventListener('keydown', handleKeyDown);
-  });
+  modal.querySelector('#close-modal-btn').addEventListener('click', closeModal);
   
   document.body.appendChild(modal);
 }
@@ -838,23 +847,35 @@ function showWhoisJson(index) {
   const result = state.whoisResults[index];
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'whois-modal-title');
   
   // Add keyboard accessibility
-  const closeModal = () => modal.remove();
+  const closeModal = () => {
+    modal.remove();
+    document.removeEventListener('keydown', handleKeyDown);
+  };
+  
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       closeModal();
-      document.removeEventListener('keydown', handleKeyDown);
     }
   };
   document.addEventListener('keydown', handleKeyDown);
   
+  // Close on backdrop click
+  modal.onclick = (e) => { 
+    if (e.target === modal) {
+      closeModal();
+    }
+  };
+  
   modal.innerHTML = `
     <div class="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold text-gray-800">WHOIS Data - ${result.target}</h3>
-        <button id="close-whois-modal-btn" class="text-gray-500 hover:text-gray-700">
+        <h3 id="whois-modal-title" class="text-xl font-bold text-gray-800">WHOIS Data - ${result.target}</h3>
+        <button id="close-whois-modal-btn" class="text-gray-500 hover:text-gray-700" aria-label="Close modal">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -865,10 +886,7 @@ function showWhoisJson(index) {
   `;
   
   // Add click handler to close button
-  modal.querySelector('#close-whois-modal-btn').addEventListener('click', () => {
-    closeModal();
-    document.removeEventListener('keydown', handleKeyDown);
-  });
+  modal.querySelector('#close-whois-modal-btn').addEventListener('click', closeModal);
   
   document.body.appendChild(modal);
 }

@@ -8,6 +8,9 @@ export interface ProviderResponse {
   error?: string;
 }
 
+// IP validation regex - validates IPv4 addresses with proper octet ranges (0-255)
+const IP_VALIDATION_REGEX = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
 // VirusTotal - Very High Confidence
 export async function lookupVirusTotal(
   type: LookupType,
@@ -345,8 +348,7 @@ export async function pingRecon(target: string): Promise<any> {
     let hostname = target;
     
     // Check if target is already an IP or a domain
-    const ipRegex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    const isIP = ipRegex.test(target);
+    const isIP = IP_VALIDATION_REGEX.test(target);
     
     if (!isIP) {
       // It's a domain, try to resolve it
