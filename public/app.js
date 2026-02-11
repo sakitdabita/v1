@@ -90,12 +90,12 @@ async function threatLookup(provider, type, value) {
 }
 
 // Bulk threat lookup
-async function bulkThreatLookup(provider, type, indicators) {
+async function bulkThreatLookup(provider, type, indicators, options) {
   try {
     const response = await fetch('/api/bulk-threat-lookup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, type, indicators }),
+      body: JSON.stringify({ provider, type, indicators, options }),
     });
     const data = await response.json();
     return data;
@@ -419,6 +419,19 @@ function renderBulkCheckTab() {
             required
           ></textarea>
         </div>
+        <div id="abuseipdb-options" style="display: none;">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Max Age in Days (AbuseIPDB only)</label>
+          <input 
+            type="number" 
+            id="max-age-days" 
+            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="180"
+            value="180"
+            min="1"
+            max="365"
+          />
+          <p class="text-xs text-gray-500 mt-1">Specifies how far back in time to look for reported abuse (1-365 days)</p>
+        </div>
         <button 
           type="submit"
           class="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-md"
@@ -606,6 +619,30 @@ function render() {
     app.innerHTML = renderLoginCard();
   } else {
     app.innerHTML = renderDashboard();
+    
+    // Add event listener for provider change if on bulk check tab
+    if (state.currentTab === 'bulk-check') {
+      const providerSelect = document.getElementById('bulk-provider');
+      if (providerSelect) {
+        providerSelect.addEventListener('change', handleProviderChange);
+        // Trigger once to set initial state
+        handleProviderChange();
+      }
+    }
+  }
+}
+
+// Handler for provider change to show/hide AbuseIPDB options
+function handleProviderChange() {
+  const provider = document.getElementById('bulk-provider').value;
+  const abuseipdbOptions = document.getElementById('abuseipdb-options');
+  
+  if (abuseipdbOptions) {
+    if (provider === 'abuseipdb') {
+      abuseipdbOptions.style.display = 'block';
+    } else {
+      abuseipdbOptions.style.display = 'none';
+    }
   }
 }
 
@@ -672,29 +709,51 @@ async function handleBulkCheck(event) {
     return;
   }
 
+  // Build options object
+  const options = {};
+  if (provider === 'abuseipdb') {
+    const maxAgeDays = document.getElementById('max-age-days').value;
+    if (maxAgeDays) {
+      options.maxAgeInDays = parseInt(maxAgeDays);
+    }
+  }
+
   resultsDiv.innerHTML = '<div class="flex items-center space-x-2 text-gray-600"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div><span>Processing bulk check...</span></div>';
 
-  const data = await bulkThreatLookup(provider, type, indicators);
+  const data = await bulkThreatLookup(provider, type, indicators, options);
   
   if (data.error) {
     resultsDiv.innerHTML = `<div class="text-red-600 p-4 bg-red-50 rounded-lg border border-red-200">Error: ${data.error}</div>`;
     return;
   }
 
+  // Extract useful information and build enhanced table
   let html = '<div class="overflow-x-auto">';
   html += '<table class="min-w-full divide-y divide-gray-200 border-2 border-gray-200 rounded-lg">';
   html += '<thead class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">';
-  html += '<tr><th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Indicator</th>';
-  html += '<th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Status</th>';
-  html += '<th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Confidence</th>';
-  html += '<th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Actions</th></tr>';
+  html += '<tr>';
+  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Indicator</th>';
+  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Status</th>';
+  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Details</th>';
+  html += '<th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Actions</th>';
+  html += '</tr>';
   html += '</thead><tbody class="bg-white divide-y divide-gray-200">';
   
   data.results.forEach((result, index) => {
     html += '<tr class="hover:bg-gray-50">';
-    html += `<td class="px-6 py-4 whitespace-nowrap font-mono text-sm">${result.indicator}</td>`;
-    html += `<td class="px-6 py-4 whitespace-nowrap"><span class="px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(result.status)}">${result.status}</span></td>`;
-    html += `<td class="px-6 py-4 whitespace-nowrap"><span class="px-3 py-1 rounded-full text-xs font-semibold ${getConfidenceBadge(result.confidence)}">${result.confidence}</span></td>`;
+    html += `<td class="px-4 py-4 whitespace-nowrap font-mono text-sm">${result.indicator}</td>`;
+    html += `<td class="px-4 py-4 whitespace-nowrap"><span class="px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(result.status)}">${result.status}</span></td>`;
+    
+    // Extract and display useful details based on provider
+    html += '<td class="px-4 py-4 text-sm">';
+    if (result.status === 'success' && result.data) {
+      html += extractProviderDetails(result.provider, result.data);
+    } else if (result.error) {
+      html += `<span class="text-red-600">${result.error}</span>`;
+    } else {
+      html += '<span class="text-gray-400">No data</span>';
+    }
+    html += '</td>';
     html += `<td class="px-6 py-4 whitespace-nowrap"><button onclick="showRawJson(${index})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">View JSON</button></td>`;
     html += '</tr>';
   });
@@ -943,6 +1002,128 @@ async function handleInternalHealth() {
 }
 
 // Helper functions
+function extractProviderDetails(provider, data) {
+  let details = [];
+  
+  try {
+    switch (provider) {
+      case 'VirusTotal':
+        if (data.data && data.data.attributes) {
+          const attrs = data.data.attributes;
+          const stats = attrs.last_analysis_stats || {};
+          const malicious = stats.malicious || 0;
+          const suspicious = stats.suspicious || 0;
+          const harmless = stats.harmless || 0;
+          const total = malicious + suspicious + harmless + (stats.undetected || 0);
+          
+          details.push(`<span class="font-semibold text-red-600">Malicious: ${malicious}</span>`);
+          details.push(`<span class="text-orange-600">Suspicious: ${suspicious}</span>`);
+          details.push(`<span class="text-green-600">Clean: ${harmless}</span>`);
+          details.push(`<span class="text-gray-600">Total: ${total}</span>`);
+          
+          if (attrs.country) {
+            details.push(`Country: ${attrs.country}`);
+          }
+          if (attrs.reputation !== undefined) {
+            details.push(`Reputation: ${attrs.reputation}`);
+          }
+        }
+        break;
+        
+      case 'ThreatFox':
+        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+          const threat = data.data[0];
+          details.push(`<span class="font-semibold text-red-600">Threat: ${threat.threat_type || 'Unknown'}</span>`);
+          if (threat.malware) {
+            details.push(`Malware: ${threat.malware}`);
+          }
+          if (threat.confidence_level) {
+            details.push(`Confidence: ${threat.confidence_level}%`);
+          }
+          details.push(`IOCs Found: ${data.data.length}`);
+        } else {
+          details.push('<span class="text-green-600">No threats found</span>');
+        }
+        break;
+        
+      case 'AbuseIPDB':
+        if (data.data) {
+          const d = data.data;
+          const score = d.abuseConfidenceScore || 0;
+          const scoreClass = score > 75 ? 'text-red-600' : score > 25 ? 'text-orange-600' : 'text-green-600';
+          
+          details.push(`<span class="font-semibold ${scoreClass}">Abuse Score: ${score}%</span>`);
+          details.push(`Reports: ${d.totalReports || 0}`);
+          details.push(`Distinct Users: ${d.numDistinctUsers || 0}`);
+          
+          if (d.usageType) {
+            details.push(`Type: ${d.usageType}`);
+          }
+          if (d.countryCode) {
+            details.push(`Country: ${d.countryCode}`);
+          }
+          if (d.isWhitelisted) {
+            details.push('<span class="text-green-600">✓ Whitelisted</span>');
+          }
+        }
+        break;
+        
+      case 'OTX/LevelBlue':
+      case 'AlienVault OTX':
+        if (data.pulse_info && data.pulse_info.count > 0) {
+          details.push(`<span class="font-semibold text-red-600">Pulses: ${data.pulse_info.count}</span>`);
+          if (data.pulse_info.pulses && data.pulse_info.pulses[0]) {
+            const pulse = data.pulse_info.pulses[0];
+            details.push(`Latest: ${pulse.name}`);
+          }
+        } else {
+          details.push('<span class="text-green-600">No pulses found</span>');
+        }
+        
+        if (data.country_name) {
+          details.push(`Country: ${data.country_name}`);
+        }
+        if (data.asn) {
+          details.push(`ASN: ${data.asn}`);
+        }
+        break;
+        
+      case 'IBM X-Force':
+        if (data.score) {
+          const score = data.score;
+          const scoreClass = score > 7 ? 'text-red-600' : score > 4 ? 'text-orange-600' : 'text-green-600';
+          details.push(`<span class="font-semibold ${scoreClass}">Risk Score: ${score}/10</span>`);
+        }
+        
+        if (data.cats) {
+          const categories = Object.keys(data.cats).join(', ');
+          if (categories) {
+            details.push(`Categories: ${categories}`);
+          }
+        }
+        
+        if (data.categoryDescriptions) {
+          const cats = Object.values(data.categoryDescriptions).join(', ');
+          if (cats) {
+            details.push(`${cats}`);
+          }
+        }
+        
+        if (data.geo && data.geo.country) {
+          details.push(`Country: ${data.geo.country}`);
+        }
+        break;
+        
+      default:
+        details.push('<span class="text-gray-600">Data available in JSON view</span>');
+    }
+  } catch (e) {
+    details.push('<span class="text-gray-600">Error parsing data</span>');
+  }
+  
+  return details.length > 0 ? details.join(' • ') : '<span class="text-gray-400">No details available</span>';
+}
+
 function getConfidenceBadge(confidence) {
   switch (confidence) {
     case 'very_high': return 'bg-red-100 text-red-800 border border-red-200';

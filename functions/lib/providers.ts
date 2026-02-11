@@ -174,7 +174,8 @@ export async function lookupOTX(
 export async function lookupAbuseIPDB(
   type: LookupType,
   value: string,
-  apiKey?: string
+  apiKey?: string,
+  maxAgeInDays: number = 180
 ): Promise<ProviderResponse> {
   if (type !== 'ip') {
     return {
@@ -197,7 +198,7 @@ export async function lookupAbuseIPDB(
   try {
     const url = new URL('https://api.abuseipdb.com/api/v2/check');
     url.searchParams.append('ipAddress', value);
-    url.searchParams.append('maxAgeInDays', '90');
+    url.searchParams.append('maxAgeInDays', maxAgeInDays.toString());
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -298,7 +299,8 @@ export async function lookupThreat(
   provider: string,
   type: LookupType,
   value: string,
-  env: any
+  env: any,
+  options?: any
 ): Promise<ProviderResponse> {
   switch (provider) {
     case 'virustotal':
@@ -308,7 +310,7 @@ export async function lookupThreat(
     case 'otx':
       return lookupOTX(type, value, env.OTX_API_KEY);
     case 'abuseipdb':
-      return lookupAbuseIPDB(type, value, env.ABUSEIPDB_API_KEY);
+      return lookupAbuseIPDB(type, value, env.ABUSEIPDB_API_KEY, options?.maxAgeInDays);
     case 'ibm-xforce':
       return lookupIBMXForce(type, value, env.IBM_XF_API_KEY);
     default:
@@ -326,11 +328,12 @@ export async function bulkLookupThreat(
   provider: string,
   type: LookupType,
   indicators: string[],
-  env: any
+  env: any,
+  options?: any
 ): Promise<Array<ProviderResponse & { indicator: string }>> {
   const results = await Promise.all(
     indicators.map(async (indicator) => {
-      const result = await lookupThreat(provider, type, indicator.trim(), env);
+      const result = await lookupThreat(provider, type, indicator.trim(), env, options);
       return { ...result, indicator: indicator.trim() };
     })
   );

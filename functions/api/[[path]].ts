@@ -80,7 +80,7 @@ app.post('/threat-lookup', async (c) => {
     await requireAuth(c);
 
     const body = await c.req.json();
-    const { provider, type, value } = body;
+    const { provider, type, value, options } = body;
 
     if (!provider || !type || !value) {
       return c.json({ error: 'Provider, type, and value are required' }, 400);
@@ -90,7 +90,7 @@ app.post('/threat-lookup', async (c) => {
       return c.json({ error: 'Type must be ip, domain, or hash' }, 400);
     }
 
-    const result = await lookupThreat(provider, type as any, value, c.env);
+    const result = await lookupThreat(provider, type as any, value, c.env, options);
     return c.json(result);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -106,7 +106,7 @@ app.post('/bulk-threat-lookup', async (c) => {
     await requireAuth(c);
 
     const body = await c.req.json();
-    const { provider, type, indicators } = body;
+    const { provider, type, indicators, options } = body;
 
     if (!provider || !type || !indicators) {
       return c.json({ error: 'Provider, type, and indicators are required' }, 400);
@@ -125,7 +125,7 @@ app.post('/bulk-threat-lookup', async (c) => {
       return c.json({ error: 'VirusTotal is limited to maximum 10 indicators per request' }, 400);
     }
 
-    const results = await bulkLookupThreat(provider, type as any, indicators, c.env);
+    const results = await bulkLookupThreat(provider, type as any, indicators, c.env, options);
     return c.json({ results });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
