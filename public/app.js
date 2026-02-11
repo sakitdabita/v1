@@ -622,14 +622,16 @@ function render() {
     
     // Add event listener for provider change if on bulk check tab
     if (state.currentTab === 'bulk-check') {
-      const providerSelect = document.getElementById('bulk-provider');
-      if (providerSelect) {
-        // Remove any existing listener first to prevent duplicates
-        providerSelect.removeEventListener('change', handleProviderChange);
-        providerSelect.addEventListener('change', handleProviderChange);
-        // Trigger once to set initial state
-        handleProviderChange();
-      }
+      // Use setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        const providerSelect = document.getElementById('bulk-provider');
+        if (providerSelect && !providerSelect.dataset.listenerAttached) {
+          providerSelect.addEventListener('change', handleProviderChange);
+          providerSelect.dataset.listenerAttached = 'true';
+          // Trigger once to set initial state
+          handleProviderChange();
+        }
+      }, 0);
     }
   }
 }
