@@ -624,6 +624,8 @@ function render() {
     if (state.currentTab === 'bulk-check') {
       const providerSelect = document.getElementById('bulk-provider');
       if (providerSelect) {
+        // Remove any existing listener first to prevent duplicates
+        providerSelect.removeEventListener('change', handleProviderChange);
         providerSelect.addEventListener('change', handleProviderChange);
         // Trigger once to set initial state
         handleProviderChange();
@@ -1069,7 +1071,6 @@ function extractProviderDetails(provider, data) {
         break;
         
       case 'OTX/LevelBlue':
-      case 'AlienVault OTX':
         if (data.pulse_info && data.pulse_info.count > 0) {
           details.push(`<span class="font-semibold text-red-600">Pulses: ${data.pulse_info.count}</span>`);
           if (data.pulse_info.pulses && data.pulse_info.pulses[0]) {
