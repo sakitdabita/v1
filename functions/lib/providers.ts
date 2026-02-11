@@ -345,7 +345,7 @@ export async function pingRecon(target: string): Promise<any> {
     let hostname = target;
     
     // Check if target is already an IP or a domain
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const ipRegex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     const isIP = ipRegex.test(target);
     
     if (!isIP) {

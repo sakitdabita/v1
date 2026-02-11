@@ -5,6 +5,8 @@ let state = {
   profile: null,
   loading: true,
   currentTab: 'dashboard',
+  bulkCheckResults: [],
+  whoisResults: [],
 };
 
 // Check session on load
@@ -605,27 +607,6 @@ function render() {
   } else {
     app.innerHTML = renderDashboard();
   }
-
-  // Add custom styles for tabs
-  const style = document.createElement('style');
-  style.textContent = `
-    .tab-btn {
-      border-color: transparent;
-      color: #6b7280;
-    }
-    .tab-btn:hover {
-      color: #3b82f6;
-      border-color: #93c5fd;
-    }
-    .tab-active {
-      color: #3b82f6;
-      border-color: #3b82f6 !important;
-    }
-  `;
-  if (!document.getElementById('custom-tab-styles')) {
-    style.id = 'custom-tab-styles';
-    document.head.appendChild(style);
-  }
 }
 
 // Event handlers
@@ -684,12 +665,13 @@ async function handleBulkCheck(event) {
   const indicatorsText = document.getElementById('bulk-indicators').value;
   const indicators = indicatorsText.split('\n').map(i => i.trim()).filter(i => i.length > 0);
 
+  const resultsDiv = document.getElementById('bulk-results');
+  
   if (provider === 'virustotal' && indicators.length > 10) {
-    alert('VirusTotal is limited to maximum 10 indicators per request');
+    resultsDiv.innerHTML = '<div class="text-red-600 p-4 bg-red-50 rounded-lg border border-red-200">VirusTotal is limited to maximum 10 indicators per request. Please remove some indicators.</div>';
     return;
   }
 
-  const resultsDiv = document.getElementById('bulk-results');
   resultsDiv.innerHTML = '<div class="flex items-center space-x-2 text-gray-600"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div><span>Processing bulk check...</span></div>';
 
   const data = await bulkThreatLookup(provider, type, indicators);
@@ -719,23 +701,33 @@ async function handleBulkCheck(event) {
   
   html += '</tbody></table></div>';
   
-  // Store results for JSON viewing
-  window.bulkCheckResults = data.results;
+  // Store results in state for JSON viewing
+  state.bulkCheckResults = data.results;
   
   resultsDiv.innerHTML = html;
 }
 
 function showRawJson(index) {
-  const result = window.bulkCheckResults[index];
+  const result = state.bulkCheckResults[index];
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  
+  // Add keyboard accessibility
+  const closeModal = () => modal.remove();
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
   
   modal.innerHTML = `
     <div class="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl">
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold text-gray-800">Raw JSON - ${result.indicator}</h3>
-        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -744,6 +736,12 @@ function showRawJson(index) {
       <pre class="bg-gray-800 text-gray-100 p-4 rounded-lg text-xs overflow-auto font-mono">${JSON.stringify(result, null, 2)}</pre>
     </div>
   `;
+  
+  // Add click handler to close button
+  modal.querySelector('#close-modal-btn').addEventListener('click', () => {
+    closeModal();
+    document.removeEventListener('keydown', handleKeyDown);
+  });
   
   document.body.appendChild(modal);
 }
@@ -830,23 +828,33 @@ async function handleBulkWhois(event) {
   
   html += '</tbody></table></div>';
   
-  // Store results for JSON viewing
-  window.whoisResults = data.results;
+  // Store results in state for JSON viewing
+  state.whoisResults = data.results;
   
   resultsDiv.innerHTML = html;
 }
 
 function showWhoisJson(index) {
-  const result = window.whoisResults[index];
+  const result = state.whoisResults[index];
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  
+  // Add keyboard accessibility
+  const closeModal = () => modal.remove();
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
   
   modal.innerHTML = `
     <div class="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl">
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold text-gray-800">WHOIS Data - ${result.target}</h3>
-        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+        <button id="close-whois-modal-btn" class="text-gray-500 hover:text-gray-700">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -855,6 +863,12 @@ function showWhoisJson(index) {
       <pre class="bg-gray-800 text-gray-100 p-4 rounded-lg text-xs overflow-auto font-mono">${JSON.stringify(result, null, 2)}</pre>
     </div>
   `;
+  
+  // Add click handler to close button
+  modal.querySelector('#close-whois-modal-btn').addEventListener('click', () => {
+    closeModal();
+    document.removeEventListener('keydown', handleKeyDown);
+  });
   
   document.body.appendChild(modal);
 }
@@ -928,6 +942,29 @@ function getStatusBadge(status) {
     default: return 'bg-gray-100 text-gray-800 border border-gray-200';
   }
 }
+
+// Initialize custom styles once
+(function initStyles() {
+  if (!document.getElementById('custom-tab-styles')) {
+    const style = document.createElement('style');
+    style.id = 'custom-tab-styles';
+    style.textContent = `
+      .tab-btn {
+        border-color: transparent;
+        color: #6b7280;
+      }
+      .tab-btn:hover {
+        color: #3b82f6;
+        border-color: #93c5fd;
+      }
+      .tab-active {
+        color: #3b82f6;
+        border-color: #3b82f6 !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+})();
 
 // Initialize
 checkSession();
