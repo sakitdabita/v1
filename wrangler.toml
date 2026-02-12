@@ -5,4 +5,4 @@ pages_build_output_dir = "./public"
 [[d1_databases]]
 binding = "DB"
 database_name = "v1-db"
-database_id = "your-database-id"  # Replace with actual database ID from `wrangler d1 create v1-db`
+database_id = "a9f75654-6ca1-4b81-8264-bd69725da7dd"  # Replace with actual database ID from `wrangler d1 create v1-db`
