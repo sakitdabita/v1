@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { getSession, setSession, clearSession, requireAuth } from '../lib/session';
-import { lookupThreat } from '../lib/providers';
+import { lookupThreat, bulkLookupThreat, pingRecon, bulkWhois } from '../lib/providers';
 
 type Bindings = {
   DB: D1Database;
@@ -10,6 +10,8 @@ type Bindings = {
   OTX_API_KEY?: string;
   ABUSEIPDB_API_KEY?: string;
   IBM_XF_API_KEY?: string;
+  // Optional ipinfo.io API key for WHOIS lookups with higher rate limits
+  IPINFO_API_KEY?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>({ strict: false }).basePath('/api');
@@ -78,7 +80,7 @@ app.post('/threat-lookup', async (c) => {
     await requireAuth(c);
 
     const body = await c.req.json();
-    const { provider, type, value } = body;
+    const { provider, type, value, options } = body;
 
     if (!provider || !type || !value) {
       return c.json({ error: 'Provider, type, and value are required' }, 400);
@@ -88,13 +90,92 @@ app.post('/threat-lookup', async (c) => {
       return c.json({ error: 'Type must be ip, domain, or hash' }, 400);
     }
 
-    const result = await lookupThreat(provider, type as any, value, c.env);
+    const result = await lookupThreat(provider, type as any, value, c.env, options);
     return c.json(result);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return c.json({ error: 'Unauthorized' }, 401);
     }
     return c.json({ error: error.message || 'Lookup failed' }, 500);
+  }
+});
+
+// Bulk threat lookup endpoint (requires auth)
+app.post('/bulk-threat-lookup', async (c) => {
+  try {
+    await requireAuth(c);
+
+    const body = await c.req.json();
+    const { provider, type, indicators, options } = body;
+
+    if (!provider || !type || !indicators) {
+      return c.json({ error: 'Provider, type, and indicators are required' }, 400);
+    }
+
+    if (!['ip', 'domain', 'hash'].includes(type)) {
+      return c.json({ error: 'Type must be ip, domain, or hash' }, 400);
+    }
+
+    if (!Array.isArray(indicators)) {
+      return c.json({ error: 'Indicators must be an array' }, 400);
+    }
+
+    // Limit VirusTotal to max 10 indicators
+    if (provider === 'virustotal' && indicators.length > 10) {
+      return c.json({ error: 'VirusTotal is limited to maximum 10 indicators per request' }, 400);
+    }
+
+    const results = await bulkLookupThreat(provider, type as any, indicators, c.env, options);
+    return c.json({ results });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message || 'Bulk lookup failed' }, 500);
+  }
+});
+
+// Ping recon endpoint (requires auth)
+app.post('/ping-recon', async (c) => {
+  try {
+    await requireAuth(c);
+
+    const body = await c.req.json();
+    const { target } = body;
+
+    if (!target) {
+      return c.json({ error: 'Target (IP or domain) is required' }, 400);
+    }
+
+    const result = await pingRecon(target);
+    return c.json(result);
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message || 'Ping recon failed' }, 500);
+  }
+});
+
+// Bulk WHOIS endpoint (requires auth)
+app.post('/bulk-whois', async (c) => {
+  try {
+    await requireAuth(c);
+
+    const body = await c.req.json();
+    const { targets } = body;
+
+    if (!targets || !Array.isArray(targets)) {
+      return c.json({ error: 'Targets array is required' }, 400);
+    }
+
+    const results = await bulkWhois(targets, c.env.IPINFO_API_KEY);
+    return c.json({ results });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message || 'Bulk WHOIS failed' }, 500);
   }
 });
 
@@ -157,6 +238,141 @@ app.get('/health/internal', async (c) => {
         status: 'error',
         database: 'error',
         error: error.message,
+      });
+    }
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Logging endpoint
+// Simple in-memory log storage (for development)
+// In production, this should use KV, R2, or Durable Objects
+const logStorage: Array<{timestamp: string, username: string, action: string, details: any}> = [];
+
+app.post('/log', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { username, action, details, timestamp } = body;
+    
+    const logEntry = {
+      timestamp,
+      username,
+      action,
+      details
+    };
+    
+    // Store in memory (limited to last 1000 entries)
+    logStorage.push(logEntry);
+    if (logStorage.length > 1000) {
+      logStorage.shift();
+    }
+    
+    // Also log to console for debugging
+    console.log('AUDIT_LOG:', `${timestamp} | ${username} | ${action} | ${JSON.stringify(details)}`);
+    
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Logging error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Get logs endpoint
+app.get('/logs', async (c) => {
+  try {
+    await requireAuth(c);
+    
+    // Return last 100 logs in reverse chronological order
+    const recentLogs = logStorage.slice(-100).reverse();
+    
+    return c.json({ logs: recentLogs });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Clear logs endpoint
+app.delete('/logs', async (c) => {
+  try {
+    await requireAuth(c);
+    
+    // Clear all logs
+    logStorage.length = 0;
+    
+    return c.json({ success: true, message: 'Logs cleared' });
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// API Lab proxy endpoint
+app.post('/proxy-request', async (c) => {
+  try {
+    await requireAuth(c);
+    
+    const body = await c.req.json();
+    const { method, url, headers, body: requestBody } = body;
+    
+    if (!method || !url) {
+      return c.json({ error: 'Method and URL are required' }, 400);
+    }
+    
+    try {
+      const startTime = Date.now();
+      const requestOptions: RequestInit = {
+        method,
+        headers: headers || {},
+      };
+      
+      if (requestBody && (method === 'POST' || method === 'PUT')) {
+        requestOptions.body = JSON.stringify(requestBody);
+        if (!requestOptions.headers) requestOptions.headers = {};
+        (requestOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+      }
+      
+      const response = await fetch(url, requestOptions);
+      const duration = Date.now() - startTime;
+      
+      // Try to parse response as JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch {
+          data = await response.text();
+        }
+      } else {
+        data = await response.text();
+      }
+      
+      // Get response headers
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      
+      return c.json({
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+        data,
+        duration: `${duration}ms`,
+      });
+    } catch (error: any) {
+      return c.json({
+        error: error.message,
+        status: 0,
       });
     }
   } catch (error: any) {
